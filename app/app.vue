@@ -1,4 +1,25 @@
 <script setup lang="ts">
+const statut = ref<"connexion" | "connecté" | "déconnecté">("connexion");
+const messages = ref<string[]>([]);
+let ws: WebSocket | null = null;
+
+onMounted(() => {
+  ws = new WebSocket(`ws://${location.host}/_ws`);
+
+  ws.onopen = () => {
+    statut.value = "connecté";
+    ws?.send("Bonjour serveur");
+  };
+  ws.onmessage = (event) => {
+    messages.value.push(event.data);
+  };
+  ws.onclose = () => {
+    statut.value = "déconnecté";
+  };
+});
+
+onBeforeUnmount(() => ws?.close());
+
 const temperature = ref<number>(65);
 
 const couleurTemperature = computed(() => {
@@ -37,6 +58,14 @@ function refoidir() {
       >
         +5 °C
       </button>
+    </div>
+    <div class="mt-6 rounded-xl bg-slate-800 p-4">
+      <p class="mb-2">
+        WebSocket : <strong>{{ statut }}</strong>
+      </p>
+      <ul class="text-sm text-slate-300">
+        <li v-for="(msg, index) in messages" :key="index">{{ msg }}</li>
+      </ul>
     </div>
   </div>
 </template>
