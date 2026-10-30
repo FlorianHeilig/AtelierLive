@@ -1,71 +1,57 @@
 <script setup lang="ts">
+import type { Mesure } from "#shared/types/mesure";
+
+const derniere = ref<Mesure | null>(null);
 const statut = ref<"connexion" | "connecté" | "déconnecté">("connexion");
-const messages = ref<string[]>([]);
 let ws: WebSocket | null = null;
+
+const couleurTemperature = computed(() => {
+  if (!derniere.value) return "text-slate-400";
+  if (derniere.value.temperature > 80) return "text-red-400";
+  if (derniere.value.temperature < 40) return "text-blue-400";
+  return "text-green-400";
+});
 
 onMounted(() => {
   ws = new WebSocket(`ws://${location.host}/_ws`);
-
   ws.onopen = () => {
     statut.value = "connecté";
     ws?.send("Bonjour serveur");
   };
-  ws.onmessage = (event) => {
-    messages.value.push(event.data);
-  };
   ws.onclose = () => {
     statut.value = "déconnecté";
+  };
+  ws.onmessage = (event) => {
+    derniere.value = JSON.parse(event.data) as Mesure;
   };
 });
 
 onBeforeUnmount(() => ws?.close());
-
-const temperature = ref<number>(65);
-
-const couleurTemperature = computed(() => {
-  if (temperature.value > 80) return "text-red-400";
-  if (temperature.value < 40) return "text-blue-400";
-  return "text-green-400";
-});
-
-function chauffer() {
-  temperature.value += 5;
-}
-
-function refoidir() {
-  temperature.value -= 5;
-}
 </script>
 
 <template>
   <div class="min-h-screen bg-slate-900 p-8 text-white">
-    <h1 class="mb-6 text-2xl font-bold">Atelier Live</h1>
+    <h1 class="mb-2 text-2xl font-bold">Atelier Live</h1>
+    <p class="mb-6 text-sm text-slate-400">WebSocket : {{ statut }}</p>
 
-    <div class="w-64 rounded-xl bg-slate-800 p-6 shadow-lg">
-      <h2 class="text-sm uppercase text-slate-400">Presse-01</h2>
+    <div v-if="derniere" class="w-64 rounded-xl bg-slate-800 p-6 shadow-lg">
+      <div class="flex items-center justify-between">
+        <h2 class="text-sm uppercase text-slate-400">{{ derniere.machine }}</h2>
+        <span
+          class="rounded-full px-2 py-0.5 text-xs"
+          :class="derniere.enMarche ? 'bg-green-600' : 'bg-red-600'"
+        >
+          {{ derniere.enMarche ? "En marche" : "Arrêt" }}
+        </span>
+      </div>
       <p class="my-2 text-4xl font-bold" :class="couleurTemperature">
-        {{ temperature }} °C
+        {{ derniere.temperature }} °C
       </p>
-      <button
-        @click="refoidir"
-        class="rounded-lg bg-blue-600 px-4 py-2 hover:bg-blue-500"
-      >
-        -5 °C
-      </button>
-      <button
-        @click="chauffer"
-        class="rounded-lg bg-blue-600 px-4 py-2 hover:bg-blue-500"
-      >
-        +5 °C
-      </button>
-    </div>
-    <div class="mt-6 rounded-xl bg-slate-800 p-4">
-      <p class="mb-2">
-        WebSocket : <strong>{{ statut }}</strong>
+      <p class="text-xs text-slate-500">
+        Mise à jour : {{ new Date(derniere.at).toLocaleTimeString("fr-FR") }}
       </p>
-      <ul class="text-sm text-slate-300">
-        <li v-for="(msg, index) in messages" :key="index">{{ msg }}</li>
-      </ul>
     </div>
+
+    <p v-else class="text-slate-400">En attente de la première mesure…</p>
   </div>
 </template>

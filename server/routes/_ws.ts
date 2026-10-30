@@ -1,14 +1,11 @@
 export default defineWebSocketHandler({
   open(peer) {
-    console.log("Client connecté :", peer.id);
-  },
-
-  message(peer, message) {
-    console.log("Message reçu :", message.text());
-    peer.send(`Le serveur a bien reçu : ${message.text()}`);
+    peers.add(peer);
+    console.log(`Client connecté (${peers.size} au total)`);
   },
 
   close(peer) {
-    console.log("Client déconnecté :", peer.id);
+    peers.delete(peer);
+    console.log(`Client déconnecté (${peers.size} au total)`);
   },
 });
