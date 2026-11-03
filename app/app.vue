@@ -1,13 +1,21 @@
 <script setup lang="ts">
 import type { Mesure } from "#shared/types/mesure";
 
-const { data: historique } = await useFetch<Mesure[]>("/api/historique", {
-  default: () => [],
-});
+const { data: historique, refresh } = await useFetch<Mesure[]>(
+  "/api/historique",
+  {
+    default: () => [],
+  },
+);
 
 const derniere = ref<Mesure | null>(historique.value[0] ?? null);
 const statut = ref<"connexion" | "connecté" | "déconnecté">("connexion");
+
 let ws: WebSocket | null = null;
+let tentatives = 0;
+let dejaConnecte = false;
+let fermetureVolontaire = false;
+let timerReconnexion: ReturnType<typeof setTimeout> | null = null;
 
 const couleurTemperature = computed(() => {
   if (!derniere.value) return "text-slate-400";
@@ -20,22 +28,46 @@ function formaterHeure(iso: string) {
   return new Date(iso).toLocaleTimeString("fr-FR");
 }
 
-onMounted(() => {
-  ws = new WebSocket(`ws://${location.host}/_ws`);
-  ws.onopen = () => {
+function connecter() {
+  statut.value = "connexion";
+  const protocole = location.protocol === "https:" ? "wss" : "ws";
+  ws = new WebSocket(`${protocole}://${location.host}/_ws`);
+
+  ws.onopen = async () => {
     statut.value = "connecté";
+    tentatives = 0;
+
+    if (dejaConnecte) {
+      await refresh();
+      derniere.value = historique.value[0] ?? derniere.value;
+    }
+    dejaConnecte = true;
   };
-  ws.onclose = () => {
-    statut.value = "déconnecté";
-  };
+
   ws.onmessage = (event) => {
     const mesure = JSON.parse(event.data) as Mesure;
     derniere.value = mesure;
     historique.value = [mesure, ...historique.value].slice(0, 20);
   };
-});
 
-onBeforeUnmount(() => ws?.close());
+  ws.onclose = () => {
+    statut.value = "déconnecté";
+    if (fermetureVolontaire) return;
+
+    const delai = Math.min(1000 * 2 ** tentatives, 30_000);
+    tentatives++;
+    console.log(`Reconnexion dans ${delai / 1000} s (tentative ${tentatives})`);
+    timerReconnexion = setTimeout(connecter, delai);
+  };
+}
+
+onMounted(connecter);
+
+onBeforeUnmount(() => {
+  fermetureVolontaire = true;
+  if (timerReconnexion) clearTimeout(timerReconnexion);
+  ws?.close();
+});
 </script>
 
 <template>
