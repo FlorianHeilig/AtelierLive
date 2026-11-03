@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import type { Mesure } from "#shared/types/mesure";
 
-const derniere = ref<Mesure | null>(null);
+const { data: historique } = await useFetch<Mesure[]>("/api/historique", {
+  default: () => [],
+});
+
+const derniere = ref<Mesure | null>(historique.value[0] ?? null);
 const statut = ref<"connexion" | "connecté" | "déconnecté">("connexion");
 let ws: WebSocket | null = null;
 
@@ -12,17 +16,22 @@ const couleurTemperature = computed(() => {
   return "text-green-400";
 });
 
+function formaterHeure(iso: string) {
+  return new Date(iso).toLocaleTimeString("fr-FR");
+}
+
 onMounted(() => {
   ws = new WebSocket(`ws://${location.host}/_ws`);
   ws.onopen = () => {
     statut.value = "connecté";
-    ws?.send("Bonjour serveur");
   };
   ws.onclose = () => {
     statut.value = "déconnecté";
   };
   ws.onmessage = (event) => {
-    derniere.value = JSON.parse(event.data) as Mesure;
+    const mesure = JSON.parse(event.data) as Mesure;
+    derniere.value = mesure;
+    historique.value = [mesure, ...historique.value].slice(0, 20);
   };
 });
 
@@ -48,10 +57,37 @@ onBeforeUnmount(() => ws?.close());
         {{ derniere.temperature }} °C
       </p>
       <p class="text-xs text-slate-500">
-        Mise à jour : {{ new Date(derniere.at).toLocaleTimeString("fr-FR") }}
+        Mise à jour : {{ formaterHeure(derniere.at) }}
       </p>
     </div>
-
     <p v-else class="text-slate-400">En attente de la première mesure…</p>
+    <div class="mt-8 max-w-xl rounded-xl bg-slate-800 p-6">
+      <h2 class="mb-4 text-lg font-bold">Historique</h2>
+      <table class="w-full text-left text-sm">
+        <thead class="text-slate-400">
+          <tr>
+            <th class="pb-2">Heure</th>
+            <th class="pb-2">Température</th>
+            <th class="pb-2">État</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="mesure in historique"
+            :key="mesure.at"
+            class="border-t border-slate-700"
+          >
+            <td class="py-1">{{ formaterHeure(mesure.at) }}</td>
+            <td class="py-1">{{ mesure.temperature }} °C</td>
+            <td
+              class="py-1"
+              :class="mesure.enMarche ? 'text-green-400' : 'text-red-400'"
+            >
+              {{ mesure.enMarche ? "En marche" : "Arrêt" }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </template>
