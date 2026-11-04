@@ -1,6 +1,6 @@
 # Atelier Live
 
-![CI](https://github.com/TON-PSEUDO/atelierlive/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/FlorianHeilig/atelierlive/actions/workflows/ci.yml/badge.svg)
 
 **Démo en ligne :** https://atelierlive.onrender.com
 _(hébergement gratuit : le premier chargement peut prendre environ une minute)_
