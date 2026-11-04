@@ -2,6 +2,9 @@
 
 ![CI](https://github.com/TON-PSEUDO/atelierlive/actions/workflows/ci.yml/badge.svg)
 
+**Démo en ligne :** https://atelierlive.onrender.com
+_(hébergement gratuit : le premier chargement peut prendre environ une minute)_
+
 Mini tableau de supervision industrielle en temps réel : une machine de production (simulée) envoie ses mesures toutes les 2 secondes, elles sont enregistrées dans PostgreSQL et diffusées en direct sur un dashboard via WebSocket.
 
 Projet réalisé pour découvrir la stack **Nuxt / Vue 3 / TypeScript / PostgreSQL / WebSocket / Docker**, dans un contexte proche de la supervision de lignes de production.
